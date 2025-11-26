@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scaler HR Intern Selector</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="styles/theme.css">
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <h1 class="title">🎯 Scaler HR Intern</h1>
+            <p class="subtitle">Candidate Evaluator</p>
+        </div>
+    </div>
+
+    <!-- Status Messages -->
+    <div id="statusMessage" class="status-message hidden"></div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p>Analyzing profile...</p>
+    </div>
+
+    <!-- Analysis Results -->
+    <div id="resultsContainer" class="results-container hidden">
+        <!-- Recommendation Card -->
+        <div id="recommendationCard" class="recommendation-card">
+            <div class="recommendation-header">
+                <div id="recommendationIcon" class="recommendation-icon"></div>
+                <div id="recommendationText" class="recommendation-text"></div>
+            </div>
+            <div id="recommendationScore" class="recommendation-score"></div>
+        </div>
+
+        <!-- Score Breakdown -->
+        <div class="score-breakdown">
+            <h3>Score Breakdown</h3>
+            <div id="scoreDetails" class="score-details"></div>
+        </div>
+
+        <!-- Key Findings -->
+        <div class="key-findings">
+            <h3>Key Findings</h3>
+            <div id="keyFindingsList" class="findings-list"></div>
+        </div>
+
+        <!-- Detailed Analysis -->
+        <details class="detailed-analysis">
+            <summary>📊 Detailed Analysis</summary>
+            <div id="detailedAnalysis" class="analysis-content"></div>
+        </details>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button id="shareButton" class="btn btn-secondary">📋 Copy Results</button>
+            <button id="newAnalysisButton" class="btn btn-primary">🔄 New Analysis</button>
+        </div>
+    </div>
+
+    <!-- Initial State -->
+    <div id="initialState" class="initial-state">
+        <div class="info-box">
+            <h2>Welcome to HR Intern Selector</h2>
+            <p>This tool analyzes LinkedIn profiles to identify suitable HR Intern candidates.</p>
+
+            <div class="criteria-box">
+                <h3>We Look For:</h3>
+                <ul class="criteria-list">
+                    <li>✅ Consistent LinkedIn activity & posting</li>
+                    <li>✅ Leadership roles & initiatives</li>
+                    <li>✅ Event organization experience</li>
+                    <li>✅ Strong people & communication skills</li>
+                    <li>✅ Proactivity & volunteer work</li>
+                    <li>✅ Community building efforts</li>
+                </ul>
+            </div>
+
+            <div class="action-box">
+                <button id="analyzeButton" class="btn btn-primary btn-large">
+                    🚀 Analyze Current Profile
+                </button>
+                <p class="help-text">Make sure you're on a LinkedIn profile page</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="error-state hidden">
+        <div class="error-icon">⚠️</div>
+        <h3>Unable to Analyze</h3>
+        <p id="errorMessage"></p>
+        <button id="retryButton" class="btn btn-secondary">🔄 Retry</button>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>v1.0.0 | Made for Scaler</p>
+    </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
