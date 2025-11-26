@@ -1,37 +1,28 @@
 // ============================================
-// ENHANCED BACKGROUND SERVICE WORKER
+// BACKGROUND SERVICE WORKER - FIXED
 // ============================================
 
-// Track extension state
-let extensionReady = false;
-
 // Listen for extension installation
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener(() => {
     console.log('✅ Scaler HR Intern Selector extension installed');
-    console.log('Installation reason:', details.reason);
 
-    // Clean up and create context menu
+    // Set up context menu after installation
     setupContextMenu();
-
-    // Initialize storage
-    chrome.storage.local.get(['lastAnalysis'], (result) => {
-        if (!result.lastAnalysis) {
-            chrome.storage.local.set({ lastAnalysis: null });
-        }
-        console.log('💾 Storage initialized');
-    });
-
-    extensionReady = true;
 });
 
-// Set up context menu with error handling
+// Function to set up context menu with proper error handling
 function setupContextMenu() {
+    // Remove any existing context menus first
     chrome.contextMenus.removeAll(() => {
+        // Create new context menu
         chrome.contextMenus.create({
             id: 'analyzeLinkedInProfile',
             title: 'Analyze with Scaler HR Selector',
             contexts: ['page'],
-            documentUrlPatterns: ['https://www.linkedin.com/*', 'https://linkedin.com/*']
+            documentUrlPatterns: [
+                'https://www.linkedin.com/*',
+                'https://linkedin.com/*'
+            ]
         }, () => {
             if (chrome.runtime.lastError) {
                 console.error('❌ Context menu error:', chrome.runtime.lastError.message);
@@ -44,115 +35,45 @@ function setupContextMenu() {
 
 // Handle messages between popup and content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('📨 Background received message:', {
-        action: request.action,
-        from: sender.tab ? `Tab ${sender.tab.id}` : 'Extension',
-        timestamp: new Date().toISOString()
-    });
+    console.log('📨 Background received message:', request);
 
-    try {
-        if (request.action === 'log') {
-            console.log('[Content Script Log]:', request.message);
-            sendResponse({ success: true, timestamp: Date.now() });
-            return true;
-        }
-
-        if (request.action === 'saveAnalysis') {
-            // Validate data before saving
-            if (!request.data) {
-                console.error('❌ No data provided for saveAnalysis');
-                sendResponse({ success: false, error: 'No data provided' });
-                return true;
-            }
-
-            // Save analysis to Chrome storage
-            chrome.storage.local.set({
-                lastAnalysis: {
-                    ...request.data,
-                    savedAt: new Date().toISOString()
-                }
-            }, () => {
-                if (chrome.runtime.lastError) {
-                    console.error('❌ Storage error:', chrome.runtime.lastError);
-                    sendResponse({
-                        success: false,
-                        error: chrome.runtime.lastError.message
-                    });
-                } else {
-                    console.log('💾 Analysis saved to storage');
-                    sendResponse({ success: true });
-                }
-            });
-            return true; // Required for async sendResponse
-        }
-
-        if (request.action === 'getLastAnalysis') {
-            chrome.storage.local.get(['lastAnalysis'], (result) => {
-                sendResponse({
-                    success: true,
-                    data: result.lastAnalysis
-                });
-            });
-            return true;
-        }
-
-        if (request.action === 'ping') {
-            sendResponse({
-                success: true,
-                message: 'Background service worker is alive',
-                ready: extensionReady
-            });
-            return true;
-        }
-
-        // Unknown action
-        console.warn('⚠️ Unknown action:', request.action);
-        sendResponse({
-            success: false,
-            error: 'Unknown action: ' + request.action
-        });
-
-    } catch (error) {
-        console.error('❌ Error handling message:', error);
-        sendResponse({
-            success: false,
-            error: error.message
-        });
+    if (request.action === 'log') {
+        console.log('[Content Script Log]:', request.message);
+        sendResponse({ success: true });
+        return true;
     }
 
-    return true; // Keep message channel open
+    if (request.action === 'saveAnalysis') {
+        // Save analysis to Chrome storage for reference
+        chrome.storage.local.set({
+            lastAnalysis: request.data
+        }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('❌ Storage error:', chrome.runtime.lastError);
+                sendResponse({ success: false, error: chrome.runtime.lastError.message });
+            } else {
+                console.log('💾 Analysis saved to storage');
+                sendResponse({ success: true });
+            }
+        });
+        return true; // Required for async response
+    }
+
+    // Default response
+    sendResponse({ success: false, error: 'Unknown action' });
+    return true;
 });
 
 // Handle context menu click
 chrome.contextMenus.onClicked.addListener((info, tab) => {
-    console.log('🖱️ Context menu clicked:', info.menuItemId);
+    console.log('🖱️ Context menu clicked');
 
     if (info.menuItemId === 'analyzeLinkedInProfile') {
-        // Verify we're on LinkedIn
-        if (tab.url && tab.url.includes('linkedin.com')) {
-            console.log('✅ Opening popup for LinkedIn profile');
-            // Note: openPopup() only works in user gesture context
-            chrome.action.openPopup();
-        } else {
-            console.warn('⚠️ Not on LinkedIn profile page');
-        }
+        // Open extension popup
+        // Note: This may not work in all contexts
+        // User can also click the extension icon
+        console.log('✅ Analyze LinkedIn Profile action triggered');
     }
 });
 
-// Monitor when service worker starts
-console.log('🚀 Background service worker loaded at', new Date().toISOString());
-extensionReady = true;
-
-// Periodic health check (optional)
-setInterval(() => {
-    console.log('💓 Service worker heartbeat:', new Date().toISOString());
-}, 60000); // Every minute
-
-// Handle errors globally
-self.addEventListener('error', (event) => {
-    console.error('❌ Global error in service worker:', event.error);
-});
-
-self.addEventListener('unhandledrejection', (event) => {
-    console.error('❌ Unhandled promise rejection:', event.reason);
-});
+console.log('✅ Background service worker loaded');

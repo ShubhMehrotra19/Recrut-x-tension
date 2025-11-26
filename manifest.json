@@ -6,7 +6,8 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "contextMenus"
   ],
   "host_permissions": [
     "https://www.linkedin.com/*",
@@ -15,7 +16,7 @@
   "action": {
     "default_title": "Scaler HR Intern Selector",
     "default_popup": "popup.html",
-    "default_icons": {
+    "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png"
     }
@@ -29,7 +30,10 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.linkedin.com/*", "https://linkedin.com/*"],
+      "matches": [
+        "https://www.linkedin.com/*",
+        "https://linkedin.com/*"
+      ],
       "js": ["content-script.js"],
       "run_at": "document_idle"
     }
