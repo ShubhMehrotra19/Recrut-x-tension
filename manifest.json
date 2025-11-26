@@ -1,20 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Scaler HR Intern Selector",
-  "version": "1.0.0",
-  "description": "Analyze LinkedIn profiles to identify suitable HR Intern candidates for Scaler",
+  "name": "Recrut-X-tension",
+  "version": "2.0.0",
+  "description": "A powerful LinkedIn profile analyzer for recruiters. Scrape and evaluate candidate profiles with ease.",
   "permissions": [
     "activeTab",
-    "scripting",
+    "tabs",
+    "downloads",
     "storage",
     "contextMenus"
   ],
   "host_permissions": [
-    "https://www.linkedin.com/*",
-    "https://linkedin.com/*"
+    "https://*.linkedin.com/*"
   ],
   "action": {
-    "default_title": "Scaler HR Intern Selector",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -25,17 +24,20 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [
+  "web_accessible_resources": [
     {
-      "matches": [
-        "https://www.linkedin.com/*",
-        "https://linkedin.com/*"
-      ],
-      "js": ["content-script.js"],
-      "run_at": "document_idle"
+      "resources": ["icons/*"],
+      "matches": ["https://*.linkedin.com/*"]
     }
   ]
 }

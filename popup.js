@@ -1,578 +1,496 @@
-const HRInternEvaluator = {
-    // Scoring configuration
-    scoringConfig: {
-        linkedinActivity: {
-            max: 25,
-            indicators: {
-                postsPerMonth: { threshold: 2, points: 10 },
-                engagementLevel: { threshold: 'medium', points: 8 },
-                hasAbout: { threshold: true, points: 7 }
-            }
-        },
-        leadership: {
-            max: 30,
-            indicators: {
-                leadershipRoles: { threshold: 1, points: 15 },
-                founderOrCEO: { threshold: true, points: 15 },
-                projectLead: { threshold: true, points: 10 }
-            }
-        },
-        peopleSkills: {
-            max: 30,
-            indicators: {
-                eventOrganization: { threshold: true, points: 12 },
-                teamCoordination: { threshold: true, points: 10 },
-                mentorship: { threshold: true, points: 8 }
-            }
-        },
-        proactivity: {
-            max: 15,
-            indicators: {
-                volunteerWork: { threshold: true, points: 8 },
-                programInitiation: { threshold: true, points: 7 }
-            }
-        }
-    },
+// popup.js - Enhanced with comprehensive potential analysis
 
-    /**
-     * Analyze scraped LinkedIn profile
-     */
-    analyzeProfile(profileData) {
-        console.log('📊 Starting profile analysis...');
+document.addEventListener('DOMContentLoaded', function() {
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const statusCard = document.getElementById('statusCard');
+    const statusTitle = document.getElementById('statusTitle');
+    const statusText = document.getElementById('statusText');
+    const loadingSection = document.getElementById('loadingSection');
+    const profileInfo = document.getElementById('profileInfo');
 
-        const scores = {
-            linkedinActivity: this.scoreLinkedInActivity(profileData),
-            leadership: this.scoreLeadership(profileData),
-            peopleSkills: this.scorePeopleSkills(profileData),
-            proactivity: this.scoreProactivity(profileData)
-        };
+    let currentProfileData = null;
 
-        const totalScore = Object.values(scores).reduce((sum, score) => sum + score.score, 0);
-        const recommendation = totalScore >= 70 ? 'YES' : 'NO';
-        const keyFindings = this.extractKeyFindings(profileData, scores);
-        const reasoning = this.generateReasoning(profileData, scores, recommendation);
+    checkLinkedInPage();
 
-        return {
-            scores,
-            totalScore,
-            recommendation,
-            keyFindings,
-            reasoning,
-            profileName: profileData.personal.name
-        };
-    },
+    analyzeBtn.addEventListener('click', analyzeProfile);
+    exportBtn.addEventListener('click', exportData);
 
-    /**
-     * Score LinkedIn Activity & Engagement (25 points max)
-     */
-    scoreLinkedInActivity(profileData) {
-        let score = 0;
-        const indicators = [];
-
-        const { activity, about } = profileData;
-
-        // Post activity scoring
-        if (activity.postCount > 0) {
-            if (activity.postCount >= 10) {
-                score += 10;
-                indicators.push('Regular posting activity detected');
-            } else if (activity.postCount >= 5) {
-                score += 7;
-                indicators.push('Moderate posting activity');
+    function checkLinkedInPage() {
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            const currentTab = tabs[0];
+            if (currentTab && currentTab.url && currentTab.url.includes('linkedin.com/in/')) {
+                updateStatus('Ready to Analyze', 'Click the button below to perform deep analysis of this LinkedIn profile.', 'default');
+                analyzeBtn.disabled = false;
             } else {
-                score += 3;
-                indicators.push('Minimal posting activity');
+                updateStatus('Not on LinkedIn Profile', 'Please navigate to a LinkedIn profile page (linkedin.com/in/...) to use this extension.', 'error');
+                analyzeBtn.disabled = true;
             }
-        }
+        });
+    }
 
-        // Engagement scoring
-        if (activity.engagementLevel === 'high') {
-            score += 8;
-            indicators.push('High engagement with community');
-        } else if (activity.engagementLevel === 'medium') {
-            score += 5;
-            indicators.push('Moderate engagement');
-        }
+    function updateStatus(title, text, type = 'default') {
+        statusTitle.textContent = type === 'error' ? '⚠️ ' + title :
+            type === 'success' ? '✅ ' + title :
+                '📍 ' + title;
+        statusText.textContent = text;
 
-        // About section
-        if (about.hasAbout) {
-            score += 7;
-            indicators.push('Comprehensive about section');
-        }
+        statusCard.className = 'status-card';
+        if (type === 'error') statusCard.classList.add('error');
+        if (type === 'success') statusCard.classList.add('success');
+    }
 
-        return {
-            score: Math.min(score, 25),
-            indicators,
-            maxScore: 25
+    function analyzeProfile() {
+        loadingSection.classList.add('active');
+        analyzeBtn.disabled = true;
+        analyzeBtn.textContent = 'Analyzing...';
+
+        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
+            chrome.tabs.sendMessage(tabs[0].id, {action: 'scrapeProfile'}, function(response) {
+                loadingSection.classList.remove('active');
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '<span>🔍</span><span>Analyze Profile</span>';
+
+                if (chrome.runtime.lastError) {
+                    updateStatus('Error', 'Failed to connect to the page. Please refresh and try again.', 'error');
+                    return;
+                }
+
+                if (response && response.success) {
+                    currentProfileData = response.data;
+
+                    // Perform deep potential analysis
+                    const analysis = analyzePotential(response.data);
+                    currentProfileData.potentialAnalysis = analysis;
+
+                    displayProfileData(response.data, analysis);
+                    updateStatus('Analysis Complete',
+                        `Profile analyzed. Potential Score: ${analysis.overallScore}% - ${analysis.verdict}`,
+                        'success');
+                    exportBtn.style.display = 'flex';
+                } else {
+                    updateStatus('Analysis Failed', response?.error || 'Unable to extract profile data. Make sure you are logged into LinkedIn.', 'error');
+                }
+            });
+        });
+    }
+
+    function analyzePotential(data) {
+        const analysis = {
+            overallScore: 0,
+            scores: {
+                learningPotential: 0,
+                leadership: 0,
+                initiative: 0,
+                careerGrowth: 0,
+                technicalBreadth: 0,
+                communityEngagement: 0
+            },
+            strengths: [],
+            growthIndicators: [],
+            concerns: [],
+            verdict: '',
+            reasoning: []
         };
-    },
 
-    /**
-     * Score Leadership Experience (30 points max)
-     */
-    scoreLeadership(profileData) {
-        let score = 0;
-        const indicators = [];
-        const { experience, organizations } = profileData;
+        // ========== LEARNING POTENTIAL SCORE (0-20) ==========
+        let learningScore = 0;
 
-        // Count leadership roles
-        const leadershipRoles = experience.filter(exp => exp.isLeadership).length;
-
-        if (leadershipRoles >= 3) {
-            score += 15;
-            indicators.push(`Multiple leadership roles detected (${leadershipRoles})`);
-        } else if (leadershipRoles >= 1) {
-            score += 10;
-            indicators.push(`Leadership experience found (${leadershipRoles} role)`);
+        // Continuous education signals
+        if (data.certifications.length > 0) {
+            learningScore += Math.min(data.certifications.length * 2, 6);
+            analysis.strengths.push(`${data.certifications.length} professional certifications`);
         }
 
-        // Organization founding/leading
-        if (organizations.hasLeadership) {
-            score += 10;
-            indicators.push('Evidence of organization/community leadership');
+        if (data.courses.length > 0) {
+            learningScore += Math.min(data.courses.length, 4);
+            analysis.growthIndicators.push(`Completed ${data.courses.length} additional courses`);
         }
 
-        // Check for founder/CEO/President titles
-        const hasFounderOrExecutive = experience.some(exp => {
-            const title = exp.title.toLowerCase();
-            return title.includes('founder') || title.includes('ceo') ||
-                title.includes('president') || title.includes('director');
-        });
-
-        if (hasFounderOrExecutive) {
-            score += 5;
-            indicators.push('Executive or founder experience');
+        // Diverse skill set
+        if (data.skills.length > 15) {
+            learningScore += 5;
+            analysis.strengths.push(`Broad technical skill set (${data.skills.length} skills)`);
+        } else if (data.skills.length > 8) {
+            learningScore += 3;
         }
 
-        return {
-            score: Math.min(score, 30),
-            indicators,
-            maxScore: 30
-        };
-    },
-
-    /**
-     * Score People & Communication Skills (30 points max)
-     */
-    scorePeopleSkills(profileData) {
-        let score = 0;
-        const indicators = [];
-        const { experience, volunteering, recommendations, about } = profileData;
-
-        // Event organization
-        const hasEventOrganization = experience.some(exp => {
-            const desc = (exp.title + ' ' + exp.description).toLowerCase();
-            return desc.includes('event') || desc.includes('organize') ||
-                desc.includes('coordinate') || desc.includes('plan');
-        });
-
-        if (hasEventOrganization) {
-            score += 10;
-            indicators.push('Event organization experience');
+        // Learning signals from about/descriptions
+        if (data.potentialIndicators.learningSignals.length > 0) {
+            learningScore += Math.min(data.potentialIndicators.learningSignals.length, 5);
+            analysis.growthIndicators.push('Growth mindset evident in profile content');
         }
 
-        // Team coordination
-        const hasTeamCoordination = experience.some(exp => {
-            const desc = (exp.title + ' ' + exp.description).toLowerCase();
-            return desc.includes('team') || desc.includes('lead') ||
-                desc.includes('manage') || desc.includes('coordinate');
-        });
+        analysis.scores.learningPotential = Math.min(learningScore, 20);
 
-        if (hasTeamCoordination) {
-            score += 10;
-            indicators.push('Team coordination experience');
-        }
+        // ========== LEADERSHIP SCORE (0-20) ==========
+        let leadershipScore = 0;
 
-        // Mentorship/people management
-        const hasMentorship = experience.some(exp => {
-            const desc = (exp.title + ' ' + exp.description).toLowerCase();
-            return desc.includes('mentor') || desc.includes('coach') ||
-                desc.includes('guide') || desc.includes('lead people');
-        });
-
-        if (hasMentorship) {
-            score += 8;
-            indicators.push('Mentorship or people management');
-        }
-
-        // Recommendations (people endorsement)
-        if (recommendations.count > 0) {
-            score += 2;
-            indicators.push(`${recommendations.count} recommendation(s) received`);
-        }
-
-        return {
-            score: Math.min(score, 30),
-            indicators,
-            maxScore: 30
-        };
-    },
-
-    /**
-     * Score Proactivity & Initiative (15 points max)
-     */
-    scoreProactivity(profileData) {
-        let score = 0;
-        const indicators = [];
-        const { volunteering, experience } = profileData;
-
-        // Volunteer work
-        if (volunteering.length > 0) {
-            score += 8;
-            indicators.push(`${volunteering.length} volunteer role(s) found`);
-        }
-
-        // Program/project initiation
-        const hasInitiatives = experience.some(exp => {
-            const desc = (exp.title + ' ' + exp.description).toLowerCase();
-            return desc.includes('started') || desc.includes('initiated') ||
-                desc.includes('founded') || desc.includes('launched') ||
-                desc.includes('created') || desc.includes('built');
-        });
-
-        if (hasInitiatives) {
-            score += 7;
-            indicators.push('Evidence of program/project initiation');
-        }
-
-        return {
-            score: Math.min(score, 15),
-            indicators,
-            maxScore: 15
-        };
-    },
-
-    /**
-     * Extract key findings
-     */
-    extractKeyFindings(profileData, scores) {
-        const findings = [];
-        const { experience, volunteering, skills, about } = profileData;
-
-        // Find top indicators from highest scoring category
-        const maxScore = Object.entries(scores).reduce((max, [_, score]) =>
-            score.score > max.score ? score : max, { score: 0 }
+        // Leadership in roles
+        const leadershipRoles = data.experience.filter(e =>
+            e.progressionLevel === 'senior' ||
+            (e.title && e.title.toLowerCase().match(/lead|manager|head|director|senior/))
         );
 
-        maxScore.indicators?.forEach(indicator => {
-            findings.push({
-                text: indicator,
-                icon: '✓'
-            });
-        });
-
-        // Additional findings
-        if (skills.length > 5) {
-            findings.push({
-                text: `${skills.length} relevant skills`,
-                icon: '🎯'
-            });
+        if (leadershipRoles.length > 0) {
+            leadershipScore += Math.min(leadershipRoles.length * 4, 8);
+            analysis.strengths.push(`${leadershipRoles.length} leadership roles`);
         }
 
-        if (about.length > 200) {
-            findings.push({
-                text: 'Comprehensive professional profile',
-                icon: '📝'
-            });
+        // Mentoring/team management signals
+        const mentorshipSignals = data.potentialIndicators.leadershipSignals.filter(s =>
+            s.toLowerCase().includes('mentor') || s.toLowerCase().includes('team') || s.toLowerCase().includes('manage')
+        );
+
+        if (mentorshipSignals.length > 0) {
+            leadershipScore += Math.min(mentorshipSignals.length * 2, 6);
+            analysis.strengths.push('Mentorship and team management experience');
         }
 
-        return findings;
-    },
+        // Recommendations received
+        if (data.recommendations.received.length > 0) {
+            leadershipScore += Math.min(data.recommendations.received.length, 6);
+            analysis.strengths.push(`${data.recommendations.received.length} recommendations received`);
+        }
 
-    /**
-     * Generate reasoning for recommendation
-     */
-    generateReasoning(profileData, scores, recommendation) {
-        const { personal } = profileData;
-        const totalScore = Object.values(scores).reduce((sum, s) => sum + s.score, 0);
+        analysis.scores.leadership = Math.min(leadershipScore, 20);
 
-        let reasoning = '';
+        // ========== INITIATIVE & PROACTIVENESS SCORE (0-20) ==========
+        let initiativeScore = 0;
 
-        if (recommendation === 'YES') {
-            reasoning = `${personal.name} demonstrates strong potential for an HR Intern role. `;
+        // Projects (especially personal/side projects)
+        if (data.projects.length > 0) {
+            initiativeScore += Math.min(data.projects.length * 3, 9);
+            analysis.strengths.push(`${data.projects.length} independent projects`);
+        }
 
-            const topScore = Object.entries(scores).reduce((top, [key, score]) =>
-                score.score > top.score ? { key, ...score } : top, { score: 0 }
-            );
+        // Publications, patents, honors
+        const achievements = data.publications.length + data.patents.length + data.honors.length;
+        if (achievements > 0) {
+            initiativeScore += Math.min(achievements * 2, 6);
+            analysis.strengths.push(`${achievements} publications/patents/honors`);
+        }
 
-            const scoreNames = {
-                linkedinActivity: 'LinkedIn activity',
-                leadership: 'leadership experience',
-                peopleSkills: 'people skills',
-                proactivity: 'proactivity'
-            };
+        // Initiative signals from descriptions
+        if (data.potentialIndicators.initiativeSignals.length > 0) {
+            initiativeScore += Math.min(data.potentialIndicators.initiativeSignals.length, 5);
+            analysis.growthIndicators.push('Proactive problem-solving evident in work history');
+        }
 
-            reasoning += `Notable strength in ${scoreNames[topScore.key] || 'key areas'}. `;
-            reasoning += 'Shows initiative, communication ability, and people-centric mindset.';
+        analysis.scores.initiative = Math.min(initiativeScore, 20);
+
+        // ========== CAREER GROWTH SCORE (0-15) ==========
+        let careerScore = 0;
+
+        // Career progression
+        if (data.potentialIndicators.careerProgression.length > 0) {
+            careerScore += 5;
+            analysis.strengths.push('Clear career progression trajectory');
+        }
+
+        // Job changes (shows adaptability but not too many)
+        const uniqueCompanies = [...new Set(data.experience.map(e => e.company))].length;
+        if (uniqueCompanies >= 2 && uniqueCompanies <= 5) {
+            careerScore += 5;
+            analysis.growthIndicators.push('Healthy job mobility showing adaptability');
+        } else if (uniqueCompanies > 5) {
+            careerScore += 2;
+            analysis.concerns.push('Frequent job changes - may need stability assessment');
+        } else if (uniqueCompanies === 1 && data.totalExperienceYears > 5) {
+            careerScore += 3;
+            analysis.growthIndicators.push('Long tenure showing loyalty');
+        }
+
+        // Experience duration in current role
+        const currentRole = data.experience.find(e => e.isCurrent);
+        if (currentRole && currentRole.durationInMonths > 12) {
+            careerScore += 5;
+        } else if (currentRole && currentRole.durationInMonths > 6) {
+            careerScore += 3;
+        }
+
+        analysis.scores.careerGrowth = Math.min(careerScore, 15);
+
+        // ========== TECHNICAL BREADTH SCORE (0-15) ==========
+        let technicalScore = 0;
+
+        // Diverse experience across domains
+        if (data.potentialIndicators.diverseExperience) {
+            technicalScore += 5;
+            analysis.strengths.push('Diverse industry/domain experience');
+        }
+
+        // Technical skills with endorsements
+        const endorsedSkills = data.skills.filter(s => s.endorsements > 5).length;
+        if (endorsedSkills > 5) {
+            technicalScore += 5;
+            analysis.strengths.push(`${endorsedSkills} well-endorsed technical skills`);
+        } else if (endorsedSkills > 0) {
+            technicalScore += 3;
+        }
+
+        // Education quality
+        if (data.education.length > 0) {
+            technicalScore += 3;
+            if (data.education.some(e => e.degree && e.degree.toLowerCase().includes('master'))) {
+                technicalScore += 2;
+                analysis.strengths.push('Advanced degree (Masters)');
+            }
+        }
+
+        analysis.scores.technicalBreadth = Math.min(technicalScore, 15);
+
+        // ========== COMMUNITY ENGAGEMENT SCORE (0-10) ==========
+        let engagementScore = 0;
+
+        // Volunteer work
+        if (data.volunteerExperience.length > 0) {
+            engagementScore += 4;
+            analysis.strengths.push('Active in volunteer/community work');
+        }
+
+        // LinkedIn activity
+        if (data.recentActivity.length > 2) {
+            engagementScore += 3;
+            analysis.growthIndicators.push('Active on LinkedIn - shares knowledge');
+        }
+
+        // Languages (shows cultural adaptability)
+        if (data.languages.length > 1) {
+            engagementScore += 3;
+            analysis.strengths.push(`Multilingual (${data.languages.length} languages)`);
+        }
+
+        analysis.scores.communityEngagement = Math.min(engagementScore, 10);
+
+        // ========== CALCULATE OVERALL SCORE ==========
+        analysis.overallScore = Math.round(
+            analysis.scores.learningPotential +
+            analysis.scores.leadership +
+            analysis.scores.initiative +
+            analysis.scores.careerGrowth +
+            analysis.scores.technicalBreadth +
+            analysis.scores.communityEngagement
+        );
+
+        // ========== DETERMINE VERDICT ==========
+        if (analysis.overallScore >= 80) {
+            analysis.verdict = 'Exceptional Potential';
+            analysis.reasoning.push('Outstanding candidate with strong growth trajectory');
+        } else if (analysis.overallScore >= 65) {
+            analysis.verdict = 'High Potential';
+            analysis.reasoning.push('Strong candidate with clear hunger to learn and grow');
+        } else if (analysis.overallScore >= 50) {
+            analysis.verdict = 'Good Potential';
+            analysis.reasoning.push('Solid candidate showing positive indicators');
+        } else if (analysis.overallScore >= 35) {
+            analysis.verdict = 'Moderate Potential';
+            analysis.reasoning.push('Shows some potential but may need more development');
         } else {
-            reasoning = `${personal.name} may need more development for this role. `;
-            reasoning += `Current profile suggests gaps in leadership visibility or people engagement (Score: ${totalScore}/100). `;
-            reasoning += 'Consider gaining more visible leadership roles or community engagement experience.';
+            analysis.verdict = 'Limited Data';
+            analysis.reasoning.push('Insufficient profile data for comprehensive assessment');
         }
 
-        return reasoning;
+        // Add specific reasoning based on scores
+        if (analysis.scores.learningPotential >= 15) {
+            analysis.reasoning.push('Strong commitment to continuous learning');
+        }
+        if (analysis.scores.leadership >= 15) {
+            analysis.reasoning.push('Demonstrated leadership capabilities');
+        }
+        if (analysis.scores.initiative >= 15) {
+            analysis.reasoning.push('High initiative and self-motivation');
+        }
+
+        // Red flags
+        if (data.experience.length === 0) {
+            analysis.concerns.push('No work experience listed');
+        }
+        if (data.skills.length < 5) {
+            analysis.concerns.push('Limited skills listed on profile');
+        }
+        if (!data.about) {
+            analysis.concerns.push('No about section - profile may be incomplete');
+        }
+
+        return analysis;
     }
-};
 
-// ============================================
-// UI STATE MANAGEMENT
-// ============================================
+    function displayProfileData(data, analysis) {
+        profileInfo.style.display = 'block';
 
-const UIManager = {
-    states: {
-        INITIAL: 'initial',
-        LOADING: 'loading',
-        RESULTS: 'results',
-        ERROR: 'error'
-    },
+        // Clear previous content
+        profileInfo.innerHTML = '';
 
-    currentState: 'initial',
+        // Basic info
+        addProfileRow('Name', data.name || 'Not found');
+        addProfileRow('Current Role', data.currentRole || 'Not specified');
+        addProfileRow('Location', data.location || 'Not found');
+        addProfileRow('Total Experience', data.totalExperienceYears ?
+            `${Math.round(data.totalExperienceYears * 10) / 10} years` : 'Not calculated');
 
-    /**
-     * Show loading state
-     */
-    showLoading() {
-        this.setState('loading');
-        document.getElementById('initialState').classList.add('hidden');
-        document.getElementById('resultsContainer').classList.add('hidden');
-        document.getElementById('errorState').classList.add('hidden');
-        document.getElementById('loadingState').classList.remove('hidden');
-    },
+        // Divider
+        const divider = document.createElement('div');
+        divider.style.borderTop = '2px solid #667eea';
+        divider.style.margin = '12px 0';
+        profileInfo.appendChild(divider);
 
-    /**
-     * Show results
-     */
-    showResults(analysisResult) {
-        this.setState('results');
-        document.getElementById('initialState').classList.add('hidden');
-        document.getElementById('loadingState').classList.add('hidden');
-        document.getElementById('errorState').classList.add('hidden');
-        document.getElementById('resultsContainer').classList.remove('hidden');
+        // Potential scores
+        addProfileRow('Learning Potential', `${analysis.scores.learningPotential}/20`, 'score');
+        addProfileRow('Leadership', `${analysis.scores.leadership}/20`, 'score');
+        addProfileRow('Initiative', `${analysis.scores.initiative}/20`, 'score');
+        addProfileRow('Career Growth', `${analysis.scores.careerGrowth}/15`, 'score');
+        addProfileRow('Technical Breadth', `${analysis.scores.technicalBreadth}/15`, 'score');
+        addProfileRow('Community Engagement', `${analysis.scores.communityEngagement}/10`, 'score');
 
-        this.renderRecommendation(analysisResult);
-        this.renderScoreBreakdown(analysisResult);
-        this.renderKeyFindings(analysisResult);
-        this.renderDetailedAnalysis(analysisResult);
-    },
+        // Overall score
+        const scoreRow = document.createElement('div');
+        scoreRow.className = 'profile-row';
+        scoreRow.style.borderTop = '2px solid #667eea';
+        scoreRow.style.paddingTop = '12px';
+        scoreRow.style.fontWeight = '700';
+        scoreRow.innerHTML = `
+            <span class="profile-label" style="font-size: 15px;">POTENTIAL SCORE:</span>
+            <span class="profile-value">
+                <span class="score-badge ${getScoreClass(analysis.overallScore)}" style="font-size: 16px;">
+                    ${analysis.overallScore}/100
+                </span>
+            </span>
+        `;
+        profileInfo.appendChild(scoreRow);
 
-    /**
-     * Render recommendation card
-     */
-    renderRecommendation(result) {
-        const card = document.getElementById('recommendationCard');
-        const icon = document.getElementById('recommendationIcon');
-        const text = document.getElementById('recommendationText');
-        const score = document.getElementById('recommendationScore');
+        // Verdict
+        const verdictRow = document.createElement('div');
+        verdictRow.className = 'profile-row';
+        verdictRow.style.borderBottom = 'none';
+        verdictRow.innerHTML = `
+            <span class="profile-label">Verdict:</span>
+            <span class="profile-value" style="font-weight: 600; color: ${getScoreColor(analysis.overallScore)};">
+                ${analysis.verdict}
+            </span>
+        `;
+        profileInfo.appendChild(verdictRow);
 
-        const isYes = result.recommendation === 'YES';
+        // Strengths section
+        if (analysis.strengths.length > 0) {
+            const strengthsSection = document.createElement('div');
+            strengthsSection.style.marginTop = '16px';
+            strengthsSection.style.padding = '12px';
+            strengthsSection.style.background = '#e8f5e9';
+            strengthsSection.style.borderRadius = '8px';
+            strengthsSection.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px; color: #2e7d32;">✅ Key Strengths:</div>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #1b5e20;">
+                    ${analysis.strengths.map(s => `<li style="margin-bottom: 4px;">${s}</li>`).join('')}
+                </ul>
+            `;
+            profileInfo.appendChild(strengthsSection);
+        }
 
-        card.classList.remove('yes', 'no');
-        card.classList.add(isYes ? 'yes' : 'no');
+        // Growth indicators
+        if (analysis.growthIndicators.length > 0) {
+            const growthSection = document.createElement('div');
+            growthSection.style.marginTop = '12px';
+            growthSection.style.padding = '12px';
+            growthSection.style.background = '#e3f2fd';
+            growthSection.style.borderRadius = '8px';
+            growthSection.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px; color: #1565c0;">🚀 Growth Indicators:</div>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #0d47a1;">
+                    ${analysis.growthIndicators.map(s => `<li style="margin-bottom: 4px;">${s}</li>`).join('')}
+                </ul>
+            `;
+            profileInfo.appendChild(growthSection);
+        }
 
-        icon.textContent = isYes ? '✅' : '❌';
-        text.innerHTML = `
-      <h2>${result.recommendation}</h2>
-      <p>${result.reasoning}</p>
-    `;
-        score.textContent = `${result.totalScore}/100`;
-    },
+        // Concerns
+        if (analysis.concerns.length > 0) {
+            const concernsSection = document.createElement('div');
+            concernsSection.style.marginTop = '12px';
+            concernsSection.style.padding = '12px';
+            concernsSection.style.background = '#fff3e0';
+            concernsSection.style.borderRadius = '8px';
+            concernsSection.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 8px; color: #e65100;">⚠️ Considerations:</div>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: #bf360c;">
+                    ${analysis.concerns.map(s => `<li style="margin-bottom: 4px;">${s}</li>`).join('')}
+                </ul>
+            `;
+            profileInfo.appendChild(concernsSection);
+        }
+    }
 
-    /**
-     * Render score breakdown
-     */
-    renderScoreBreakdown(result) {
-        const container = document.getElementById('scoreDetails');
-        const categories = [
-            { key: 'linkedinActivity', label: 'LinkedIn Activity', color: 'primary' },
-            { key: 'leadership', label: 'Leadership', color: 'primary' },
-            { key: 'peopleSkills', label: 'People Skills', color: 'primary' },
-            { key: 'proactivity', label: 'Proactivity', color: 'primary' }
-        ];
+    function addProfileRow(label, value, type = 'normal') {
+        const row = document.createElement('div');
+        row.className = 'profile-row';
 
-        container.innerHTML = categories.map(cat => {
-            const scoreData = result.scores[cat.key];
-            const percentage = (scoreData.score / scoreData.maxScore) * 100;
+        if (type === 'score') {
+            const scoreValue = parseInt(value.split('/')[0]);
+            const maxValue = parseInt(value.split('/')[1]);
+            const percentage = (scoreValue / maxValue) * 100;
 
-            return `
-        <div class="score-item">
-          <div class="score-label">${cat.label}</div>
-          <div class="score-bar">
-            <div class="score-bar-fill" style="width: ${percentage}%"></div>
-          </div>
-          <div class="score-value">${scoreData.score}/${scoreData.maxScore}</div>
-        </div>
-      `;
-        }).join('');
-    },
+            row.innerHTML = `
+                <span class="profile-label">${label}:</span>
+                <span class="profile-value">
+                    ${value}
+                    <div style="width: 60px; height: 6px; background: #e0e0e0; border-radius: 3px; display: inline-block; margin-left: 8px; vertical-align: middle;">
+                        <div style="width: ${percentage}%; height: 100%; background: ${getScoreColor(percentage)}; border-radius: 3px;"></div>
+                    </div>
+                </span>
+            `;
+        } else {
+            row.innerHTML = `
+                <span class="profile-label">${label}:</span>
+                <span class="profile-value">${value}</span>
+            `;
+        }
 
-    /**
-     * Render key findings
-     */
-    renderKeyFindings(result) {
-        const container = document.getElementById('keyFindingsList');
+        profileInfo.appendChild(row);
+    }
 
-        if (result.keyFindings.length === 0) {
-            container.innerHTML = '<p style="opacity: 0.7;">No specific findings highlighted.</p>';
+    function getScoreClass(score) {
+        if (score >= 70) return 'score-high';
+        if (score >= 50) return 'score-medium';
+        return 'score-low';
+    }
+
+    function getScoreColor(score) {
+        if (score >= 70) return '#2ecc71';
+        if (score >= 50) return '#f39c12';
+        return '#e74c3c';
+    }
+
+    function exportData() {
+        if (!currentProfileData) {
+            updateStatus('No Data', 'Please analyze a profile first.', 'error');
             return;
         }
 
-        container.innerHTML = result.keyFindings.map(finding => `
-      <div class="finding-item">
-        <div class="finding-icon">${finding.icon}</div>
-        <div class="finding-text">${finding.text}</div>
-      </div>
-    `).join('');
-    },
+        const dataStr = JSON.stringify(currentProfileData, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        const url = URL.createObjectURL(dataBlob);
 
-    /**
-     * Render detailed analysis
-     */
-    renderDetailedAnalysis(result) {
-        const container = document.getElementById('detailedAnalysis');
-        const { scores } = result;
+        const filename = `${currentProfileData.name?.replace(/\s+/g, '_') || 'profile'}_analysis_${Date.now()}.json`;
 
-        let html = '';
-
-        Object.entries(scores).forEach(([key, scoreData]) => {
-            const labels = {
-                linkedinActivity: 'LinkedIn Activity & Engagement',
-                leadership: 'Leadership Experience',
-                peopleSkills: 'People & Communication Skills',
-                proactivity: 'Proactivity & Initiative'
-            };
-
-            html += `
-        <div class="analysis-section">
-          <h4>${labels[key]}</h4>
-          <p class="analysis-text"><strong>Score:</strong> ${scoreData.score}/${scoreData.maxScore}</p>
-          <p class="analysis-text"><strong>Indicators:</strong></p>
-          <ul style="margin: 0; padding-left: 16px; font-size: 12px; opacity: 0.8;">
-            ${scoreData.indicators.map(ind => `<li>${ind}</li>`).join('')}
-          </ul>
-        </div>
-      `;
+        chrome.downloads.download({
+            url: url,
+            filename: filename,
+            saveAs: true
+        }, function(downloadId) {
+            if (chrome.runtime.lastError) {
+                updateStatus('Export Failed', 'Unable to export data.', 'error');
+            } else {
+                updateStatus('Export Successful', `Complete analysis saved as ${filename}`, 'success');
+            }
         });
-
-        container.innerHTML = html;
-    },
-
-    /**
-     * Show error
-     */
-    showError(message) {
-        this.setState('error');
-        document.getElementById('initialState').classList.add('hidden');
-        document.getElementById('loadingState').classList.add('hidden');
-        document.getElementById('resultsContainer').classList.add('hidden');
-        document.getElementById('errorState').classList.remove('hidden');
-        document.getElementById('errorMessage').textContent = message;
-    },
-
-    /**
-     * Show initial state
-     */
-    showInitial() {
-        this.setState('initial');
-        document.getElementById('initialState').classList.remove('hidden');
-        document.getElementById('loadingState').classList.add('hidden');
-        document.getElementById('resultsContainer').classList.add('hidden');
-        document.getElementById('errorState').classList.add('hidden');
-    },
-
-    /**
-     * Set internal state
-     */
-    setState(state) {
-        this.currentState = state;
-        console.log(`📍 State changed to: ${state}`);
     }
-};
 
-// ============================================
-// EVENT LISTENERS & INITIALIZATION
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    const analyzeButton = document.getElementById('analyzeButton');
-    const newAnalysisButton = document.getElementById('newAnalysisButton');
-    const shareButton = document.getElementById('shareButton');
-    const retryButton = document.getElementById('retryButton');
-
-    // Analyze button
-    analyzeButton?.addEventListener('click', async () => {
-        console.log('🚀 Analyze button clicked');
-        UIManager.showLoading();
-
-        try {
-            // Get active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-            // Check if on LinkedIn
-            if (!tab.url.includes('linkedin.com')) {
-                throw new Error('Please navigate to a LinkedIn profile page first.');
-            }
-
-            // Send message to content script
-            const response = await chrome.tabs.sendMessage(tab.id, { action: 'scrapeProfile' });
-
-            if (!response.success) {
-                throw new Error(response.error || 'Failed to scrape profile data');
-            }
-
-            // Analyze the scraped data
-            const analysisResult = HRInternEvaluator.analyzeProfile(response.data);
-            console.log('📊 Analysis complete:', analysisResult);
-
-            // Store result for sharing
-            window.lastAnalysisResult = analysisResult;
-
-            // Show results
-            UIManager.showResults(analysisResult);
-
-        } catch (error) {
-            console.error('❌ Error:', error);
-            UIManager.showError(error.message || 'An error occurred while analyzing the profile.');
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+        if (request.action === 'profileAnalyzed') {
+            currentProfileData = request.data;
+            const analysis = analyzePotential(request.data);
+            currentProfileData.potentialAnalysis = analysis;
+            displayProfileData(request.data, analysis);
         }
     });
-
-    // New analysis button
-    newAnalysisButton?.addEventListener('click', () => {
-        UIManager.showInitial();
-    });
-
-    // Share button
-    shareButton?.addEventListener('click', () => {
-        if (!window.lastAnalysisResult) return;
-
-        const result = window.lastAnalysisResult;
-        const shareText = `
-🎯 Scaler HR Intern Candidate Evaluation
-
-Name: ${result.profileName}
-Recommendation: ${result.recommendation}
-Score: ${result.totalScore}/100
-
-Score Breakdown:
-• LinkedIn Activity: ${result.scores.linkedinActivity.score}/${result.scores.linkedinActivity.maxScore}
-• Leadership: ${result.scores.leadership.score}/${result.scores.leadership.maxScore}
-• People Skills: ${result.scores.peopleSkills.score}/${result.scores.peopleSkills.maxScore}
-• Proactivity: ${result.scores.proactivity.score}/${result.scores.proactivity.maxScore}
-
-Reasoning: ${result.reasoning}
-    `.trim();
-
-        navigator.clipboard.writeText(shareText).then(() => {
-            shareButton.textContent = '✅ Copied!';
-            setTimeout(() => {
-                shareButton.textContent = '📋 Copy Results';
-            }, 2000);
-        });
-    });
-
-    // Retry button
-    retryButton?.addEventListener('click', () => {
-        UIManager.showInitial();
-    });
 });
-
-console.log('✅ Popup script loaded');
